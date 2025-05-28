@@ -21,8 +21,8 @@ from io import BytesIO
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Chave da API OpenAI
-DEFAULT_API_KEY = "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"
+
+DEFAULT_API_KEY = "yourkey"
 
 def encode_image_to_base64(image_path):
     """
