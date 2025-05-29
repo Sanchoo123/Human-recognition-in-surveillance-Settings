@@ -1,3 +1,7 @@
+# Main Training and Testing Module for Biometric Recognition System
+# This module provides the main entry point for training, testing, and evaluating
+# the biometric recognition system using ResNet-based architectures
+
 import os
 import argparse
 import numpy as np
@@ -12,58 +16,60 @@ import time
 from tqdm import tqdm
 import cv2
 
-# Import custom modules
+# Import custom modules for the biometric recognition pipeline
 from create_pairs import create_frame_pairs
 from dataset_fusion import FusedFramePairsDataset
-from single_model import CombinedChannelModel  # Use the single model instead of FusedFrameResNet
+from single_model import CombinedChannelModel
 
-# Simple visualization function 
 def create_simple_visualization(img1_np, img2_np, prediction):
     """
-    Creates a simple visualization for comparing two images
+    Creates a simple visualization for comparing two images with prediction result.
+    
+    This function generates a composite image showing both input images side by side
+    with the model's prediction and confidence score.
     
     Args:
-        img1_np: First image as numpy array
-        img2_np: Second image as numpy array
-        prediction: Model prediction (probability)
+        img1_np (numpy.ndarray): First image as numpy array (CHW format)
+        img2_np (numpy.ndarray): Second image as numpy array (CHW format)
+        prediction (float): Model prediction probability (0-1)
         
     Returns:
-        Composite image for visualization
+        numpy.ndarray: Composite image for visualization
     """
-    # Denormalize images for visualization
+    # Denormalize images from [0,1] range to [0,255] for visualization
     img1_vis = (img1_np.transpose(1, 2, 0) * 255).astype(np.uint8)
     img2_vis = (img2_np.transpose(1, 2, 0) * 255).astype(np.uint8)
     
-    # Convert from RGB to BGR for OpenCV
+    # Convert from RGB to BGR format for OpenCV operations
     img1_vis = cv2.cvtColor(img1_vis, cv2.COLOR_RGB2BGR)
     img2_vis = cv2.cvtColor(img2_vis, cv2.COLOR_RGB2BGR)
     
-    # Ensure both images are 256x128 with aspect ratio 2:1
+    # Ensure consistent dimensions (256x128 with 2:1 aspect ratio)
     img1_vis = cv2.resize(img1_vis, (256, 128))
     img2_vis = cv2.resize(img2_vis, (256, 128))
         
-    # Create a composite image
-    width = 562  # 256 + 256 + 50 (margin)
-    height = 200  # 128 + some margin for text
-    composite = np.ones((height, width, 3), dtype=np.uint8) * 255
+    # Create composite canvas for side-by-side comparison
+    width = 562  # 256 + 256 + 50 (margin between images)
+    height = 200  # 128 + margin for text
+    composite = np.ones((height, width, 3), dtype=np.uint8) * 255  # White background
     
-    # Add decision label
+    # Add prediction decision and confidence score
     decision = "GENUINE" if prediction > 0.5 else "IMPOSTOR"
     label = f"{decision} (score: {prediction:.4f})"
     cv2.putText(composite, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
                 0.7, (0, 0, 0), 2)
     
-    # Add images
-    composite[50:50+128, 10:10+256] = img1_vis
-    composite[50:50+128, 296:296+256] = img2_vis
+    # Place images side by side with margin
+    composite[50:50+128, 10:10+256] = img1_vis      # Left image
+    composite[50:50+128, 296:296+256] = img2_vis    # Right image
     
-    # Add labels
+    # Add image labels
     cv2.putText(composite, "Image 1", (10, 45), cv2.FONT_HERSHEY_SIMPLEX, 
                 0.5, (0, 0, 0), 1)
     cv2.putText(composite, "Image 2", (296, 45), cv2.FONT_HERSHEY_SIMPLEX, 
                 0.5, (0, 0, 0), 1)
     
-    # Add info about dimensions
+    # Add dimension information
     cv2.putText(composite, f"256x128 (2:1)", (200, 180), cv2.FONT_HERSHEY_SIMPLEX, 
                 0.5, (0, 0, 0), 1)
     
@@ -71,84 +77,107 @@ def create_simple_visualization(img1_np, img2_np, prediction):
 
 def plot_training_metrics(val_losses, val_accuracies, output_dir):
     """
-    Plota e salva o gráfico de val_loss e val_accuracy.
+    Plots and saves validation loss and accuracy metrics during training.
+    
+    This function creates a visualization of the training progress by plotting
+    validation loss and accuracy curves over epochs.
 
     Args:
-        val_losses: Lista de perdas de validação por época.
-        val_accuracies: Lista de acurácias de validação por época.
-        output_dir: Diretório onde o gráfico será salvo.
+        val_losses (list): List of validation losses per epoch
+        val_accuracies (list): List of validation accuracies per epoch
+        output_dir (str): Directory where the plot will be saved
     """
     epochs = range(1, len(val_losses) + 1)
     
+    # Create figure with appropriate size
     plt.figure(figsize=(10, 6))
-    plt.plot(epochs, val_losses, label='Val Loss', color='red')
-    plt.plot(epochs, val_accuracies, label='Val Accuracy', color='blue')
-    plt.title('Validation Loss and Accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Value')
-    plt.legend()
-    plt.grid(True)
     
-    # Salvar o gráfico no diretório de saída
+    # Plot validation loss and accuracy on the same graph
+    plt.plot(epochs, val_losses, label='Val Loss', color='red', linewidth=2)
+    plt.plot(epochs, val_accuracies, label='Val Accuracy', color='blue', linewidth=2)
+    
+    # Configure plot appearance
+    plt.title('Validation Loss and Accuracy During Training', fontsize=14, fontweight='bold')
+    plt.xlabel('Epochs', fontsize=12)
+    plt.ylabel('Value', fontsize=12)
+    plt.legend(fontsize=11)
+    plt.grid(True, alpha=0.3)
+    
+    # Save the plot to output directory
     os.makedirs(output_dir, exist_ok=True)
     plot_path = os.path.join(output_dir, 'val_loss_accuracy.png')
-    plt.savefig(plot_path)
-    print(f"Gráfico de Val Loss e Val Accuracy salvo em: {plot_path}")
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    print(f"Training metrics plot saved to: {plot_path}")
     plt.close()
 
 def main():
-    # Configure command line arguments
+    """
+    Main function that orchestrates the training, testing, or explanation process.
+    
+    This function handles command-line arguments, data preparation, model initialization,
+    and coordinates the chosen operation mode (train/test/explain).
+    """
+    # Configure command line arguments for flexible operation
     parser = argparse.ArgumentParser(description='Biometric Recognition System with PyTorch ResNet')
-    parser.add_argument('--roi_dir', required=True, help='Directory containing the ROIs')
+    parser.add_argument('--roi_dir', required=True, help='Directory containing the ROIs organized by subject/video')
     parser.add_argument('--mode', choices=['train', 'test', 'explain'], required=True, help='Operation mode')
-    parser.add_argument('--model_path', default=None, help='Path to pre-trained model (optional)')
-    parser.add_argument('--num_pairs', type=int, default=1000, help='Number of pairs to generate')
-    parser.add_argument('--genuine_ratio', type=float, default=0.5, help='Ratio of genuine pairs')
-    parser.add_argument('--batch_size', type=int, default=32, help='Batch size')
-    parser.add_argument('--epochs', type=int, default=20, help='Number of epochs')
-    parser.add_argument('--resnet_type', default='resnet18', choices=['resnet18', 'resnet34', 'resnet50'], help='ResNet variant')
-    parser.add_argument('--output_dir', default='./output', help='Directory to save results')
+    parser.add_argument('--model_path', default=None, help='Path to pre-trained model (required for test/explain modes)')
+    parser.add_argument('--num_pairs', type=int, default=1000, help='Number of image pairs to generate for training/testing')
+    parser.add_argument('--genuine_ratio', type=float, default=0.5, help='Ratio of genuine pairs (0.0-1.0)')
+    parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training and testing')
+    parser.add_argument('--epochs', type=int, default=20, help='Number of training epochs')
+    parser.add_argument('--resnet_type', default='resnet18', choices=['resnet18', 'resnet34', 'resnet50'], 
+                       help='ResNet architecture variant to use')
+    parser.add_argument('--output_dir', default='./output', help='Directory to save results and model checkpoints')
     parser.add_argument('--continue_training', action='store_true', 
-                        help='Continue training from a checkpoint')
+                        help='Continue training from a previous checkpoint')
     parser.add_argument('--checkpoint_path', type=str, default=None, 
-                        help='Path to the checkpoint to continue training from')
+                        help='Path to checkpoint for continuing training')
     args = parser.parse_args()
     
-    # Define a fixed learning rate
-    learning_rate = 0.0001  # Fixed initial value
+    # Define hyperparameters
+    learning_rate = 0.0001  # Conservative learning rate for stable training
     
-    # Create output directory
+    # Create output directory for saving results
     os.makedirs(args.output_dir, exist_ok=True)
     
-    # Set device (GPU if available, otherwise CPU)
+    # Set computing device (prefer GPU if available)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
+    if device.type == 'cuda':
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+        print(f"CUDA Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
     
-    # Define transforms for images - apenas normalização
+    # Define normalization transforms for 6-channel input (2 RGB images concatenated)
+    # Use ImageNet statistics repeated for both images
     transform = transforms.Normalize(
-        mean=[0.485, 0.456, 0.406, 0.485, 0.456, 0.406],  # Normalização para 6 canais (2 imagens RGB)
-        std=[0.229, 0.224, 0.225, 0.229, 0.224, 0.225]
+        mean=[0.485, 0.456, 0.406, 0.485, 0.456, 0.406],  # RGB means for both images
+        std=[0.229, 0.224, 0.225, 0.229, 0.224, 0.225]    # RGB stds for both images
     )
     
-    # Generate pairs
+    # Generate image pairs for training/testing
     print(f"Generating {args.num_pairs} pairs with {args.genuine_ratio*100}% genuine ratio...")
     pairs = create_frame_pairs(args.roi_dir, num_pairs=args.num_pairs, genuine_ratio=args.genuine_ratio)
     
-    # Create dataset with fused image pairs
+    # Create dataset with fused image pairs (6-channel tensors)
     dataset = FusedFramePairsDataset(pairs, transform=transform, output_shape=(256, 128))
     
-    # Split dataset into train/val/test
+    # Split dataset based on operation mode
     if args.mode == 'train':
-        train_size = int(0.7 * len(dataset))
-        val_size = int(0.15 * len(dataset))
-        test_size = len(dataset) - train_size - val_size
+        # Training mode: split into train/validation/test sets
+        train_size = int(0.7 * len(dataset))    # 70% for training
+        val_size = int(0.15 * len(dataset))     # 15% for validation
+        test_size = len(dataset) - train_size - val_size  # 15% for testing
         train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
         
+        # Create data loaders with appropriate settings
         train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
         val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
         test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
+        
+        print(f"Dataset split - Train: {len(train_dataset)}, Val: {len(val_dataset)}, Test: {len(test_dataset)}")
     else:
-        # For test or explain, use the whole dataset as test set
+        # Test or explain mode: use entire dataset for evaluation
         test_dataset = dataset
         test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     

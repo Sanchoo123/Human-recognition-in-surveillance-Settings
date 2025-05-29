@@ -1,3 +1,29 @@
+"""
+Biometric Pair Prediction with AI-Powered Explanation System
+
+This module provides comprehensive biometric verification capabilities with intelligent 
+explanation generation using GPT-4 Vision. It performs person re-identification 
+between image pairs and generates detailed forensic analysis explanations.
+
+Key Features:
+- Deep learning-based biometric verification using fused channel ResNet models
+- AI-powered explanation generation with multiple prompt strategies
+- Advanced clustering analysis for explanation quality assessment
+- Comprehensive visualization and reporting capabilities
+- Forensic-grade analysis with security-focused insights
+
+Author: Biometric Recognition Research Team
+Version: 2.0
+Date: 2024
+
+Dependencies:
+- PyTorch for deep learning model inference
+- OpenAI GPT-4 Vision for explanation generation
+- SentenceTransformers for text embedding analysis
+- scikit-learn for clustering and similarity analysis
+- OpenCV for image processing and visualization
+"""
+
 import os
 import torch
 import cv2
@@ -18,64 +44,95 @@ from datetime import datetime
 import base64
 from io import BytesIO
 
-# Configurar logging
+# Configure comprehensive logging for system monitoring
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
+# Default OpenAI API key (replace with your actual key)
 DEFAULT_API_KEY = "yourkey"
 
 def encode_image_to_base64(image_path):
     """
-    Codifica uma imagem para base64.
+    Encode an image file to base64 format for API transmission.
+    
+    This function reads an image file and converts it to a base64-encoded string,
+    which is required for sending images to the OpenAI Vision API.
+    
+    Args:
+        image_path (str): Path to the image file to encode
+        
+    Returns:
+        str: Base64-encoded string representation of the image
+        
+    Raises:
+        FileNotFoundError: If the image file doesn't exist
+        IOError: If there's an error reading the image file
     """
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
 def generate_explanation_with_gpt4(image_path1, image_path2, decision, score, custom_prompt=None):
     """
-    Gera uma explicação usando o GPT-4.1 com roleplay de especialista.
+    Generate detailed forensic analysis explanation using GPT-4 Vision.
+    
+    This function leverages GPT-4's vision capabilities to provide expert-level
+    analysis of biometric image pairs, including forensic insights, security
+    assessments, and technical evaluations.
+    
+    Args:
+        image_path1 (str): Path to the first biometric image
+        image_path2 (str): Path to the second biometric image  
+        decision (str): Model's classification decision ("Genuine" or "Impostor")
+        score (float): Confidence score from the biometric model
+        custom_prompt (str, optional): Custom analysis prompt to override default
+        
+    Returns:
+        str: Detailed expert analysis explanation in Portuguese
+        
+    Raises:
+        Exception: If GPT-4 API call fails or returns invalid response
     """
     try:
-        # Codificar imagens em base64
+        # Encode both images to base64 for API transmission
         base64_image1 = encode_image_to_base64(image_path1)
         base64_image2 = encode_image_to_base64(image_path2)
         
-        # Usar prompt customizado se fornecido, senão usar o padrão
+        # Use custom prompt if provided, otherwise use comprehensive default
         if custom_prompt:
             prompt = custom_prompt.format(decision=decision, score=score)
         else:
-            # Preparar o prompt padrão com roleplay
-            prompt = f"""Você é um especialista em análise biométrica e segurança, com anos de experiência em análise forense de imagens. 
-            Sua tarefa é analisar este par de imagens biométricas que foram classificadas como {decision} com um score de {score:.4f}.
+            # Comprehensive forensic analysis prompt with roleplay
+            prompt = f"""You are a biometric analysis and security expert with years of experience in forensic image analysis. 
+            Your task is to analyze this biometric image pair that was classified as {decision} with a score of {score:.4f}.
             
-            Como especialista, forneça uma análise detalhada e técnica considerando:
+            As an expert, provide a detailed and technical analysis considering:
             
-            antes de comecares estes pontso quero uma descricao do genero da pessoa , do ambiente das cores da roupa, estilo de cabelo etc 
-            1. Análise Forense:
-               - Características biométricas similares ou diferentes
-               - Qualidade e resolução das imagens
-               - Possíveis artefatos ou distorções
+            Before starting these points, I want a description of the person's gender, environment, clothing colors, hairstyle, etc.
             
-            2. Análise de Segurança:
-               - Nível de confiança na classificação
-               - Possíveis pontos de vulnerabilidade
-               - Recomendações para verificação adicional
+            1. Forensic Analysis:
+               - Similar or different biometric characteristics
+               - Image quality and resolution
+               - Possible artifacts or distortions
             
-            3. Análise Técnica:
-               - Detalhes específicos que levaram à classificação
-               - Fatores que influenciaram o score
-               - Limitações da análise atual
+            2. Security Analysis:
+               - Confidence level in the classification
+               - Possible vulnerability points
+               - Recommendations for additional verification
             
-            Mantenha um tom profissional e técnico, mas acessível. Use terminologia especializada quando apropriado."""
+            3. Technical Analysis:
+               - Specific details that led to the classification
+               - Factors that influenced the score
+               - Current analysis limitations
+            
+            Maintain a professional and technical tone, but accessible. Use specialized terminology when appropriate."""
         
-        # Configurar a chamada da API
+        # Configure OpenAI API call with high-resolution image analysis
         client = openai.OpenAI(api_key=DEFAULT_API_KEY)
         response = client.chat.completions.create(
             model="gpt-4.1",
             messages=[
                 {
                     "role": "system",
-                    "content": "Você é um especialista em análise biométrica e segurança, com profundo conhecimento em análise forense de imagens e sistemas de autenticação biométrica."
+                    "content": "You are a biometric analysis and security expert with deep knowledge in forensic image analysis and biometric authentication systems."
                 },
                 {
                     "role": "user",
@@ -109,84 +166,103 @@ def generate_explanation_with_gpt4(image_path1, image_path2, decision, score, cu
         return response.choices[0].message.content
         
     except Exception as e:
-        logging.error(f"Erro ao gerar explicação com GPT-4.1: {str(e)}")
+        logging.error(f"Error generating explanation with GPT-4.1: {str(e)}")
         raise
 
 def predict_image_pair(image_path1, image_path2, model_path, resnet_type='resnet50', threshold=0.5):
     """
-    Faz a predição entre um par de imagens e retorna se é genuíno ou impostor.
+    Perform biometric verification between two images using trained deep learning model.
+    
+    This function loads a pre-trained ResNet-based model and performs person 
+    re-identification between two input images, returning both the classification
+    decision and confidence score.
     
     Args:
-        image_path1: Caminho da primeira imagem.
-        image_path2: Caminho da segunda imagem.
-        model_path: Caminho para o modelo treinado.
-        resnet_type: Tipo de ResNet usado no modelo (ex.: resnet18, resnet50).
-        threshold: Limiar para decisão (default: 0.5).
-    
+        image_path1 (str): Path to the first biometric image
+        image_path2 (str): Path to the second biometric image
+        model_path (str): Path to the trained model weights file
+        resnet_type (str): ResNet architecture type ('resnet18', 'resnet50', etc.)
+        threshold (float): Decision threshold for genuine/impostor classification
+        
     Returns:
-        (str, float): Tupla com a decisão ("Genuine" ou "Impostor") e o score.
+        tuple: (decision, score) where:
+            - decision (str): "Genuine" if same person, "Impostor" if different
+            - score (float): Model confidence score between 0 and 1
+            
+    Raises:
+        FileNotFoundError: If image files or model file don't exist
+        ValueError: If images cannot be loaded or processed
     """
-    # Verificar se os arquivos existem
+    # Validate input file existence
     if not os.path.exists(image_path1) or not os.path.exists(image_path2):
-        raise FileNotFoundError("Um ou ambos os caminhos das imagens não existem.")
+        raise FileNotFoundError("One or both image paths do not exist.")
     if not os.path.exists(model_path):
-        raise FileNotFoundError("O modelo especificado não foi encontrado.")
+        raise FileNotFoundError("The specified model was not found.")
     
-    # Configurar o dispositivo
+    # Configure computing device (GPU if available, CPU otherwise)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    # Carregar o modelo
+    # Load the pre-trained biometric model
     model = CombinedChannelModel(resnet_type=resnet_type)
     model.load_state_dict(torch.load(model_path, map_location=device))
     model = model.to(device)
-    model.eval()
+    model.eval()  # Set to evaluation mode
     
-    # Carregar e processar as imagens
+    # Load and preprocess input images
     img1 = cv2.imread(image_path1)
     img2 = cv2.imread(image_path2)
     if img1 is None or img2 is None:
-        raise ValueError("Não foi possível carregar uma ou ambas as imagens.")
+        raise ValueError("Could not load one or both images.")
+    
+    # Convert from BGR to RGB color space
     img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
     img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
     
-    # Criar tensor fundido
+    # Create fused tensor combining both images (6-channel input)
     fused_tensor = create_fused_instance(img1, img2, output_shape=(256, 128))
     
-    # Normalizar o tensor
+    # Apply ImageNet normalization to the fused tensor
     normalize = transforms.Normalize(
-        mean=[0.485, 0.456, 0.406, 0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225, 0.229, 0.224, 0.225]
+        mean=[0.485, 0.456, 0.406, 0.485, 0.456, 0.406],  # RGB means for both images
+        std=[0.229, 0.224, 0.225, 0.229, 0.224, 0.225]   # RGB stds for both images
     )
     fused_tensor = normalize(fused_tensor)
     
-    # Fazer a predição
+    # Perform model inference
     with torch.no_grad():
-        fused_input = fused_tensor.unsqueeze(0).to(device)
-        prediction = model(fused_input).item()
+        fused_input = fused_tensor.unsqueeze(0).to(device)  # Add batch dimension
+        prediction = model(fused_input).item()  # Get scalar prediction
     
-    # Decisão baseada no limiar
+    # Make decision based on threshold
     decision = "Genuine" if prediction > threshold else "Impostor"
     return decision, prediction
 
 def create_visualization(image_path1, image_path2, decision, score, output_path):
     """
-    Cria uma visualização do par de imagens com o resultado da predição.
+    Create a visual comparison of the image pair with prediction results.
+    
+    This function generates a side-by-side visualization of the two input images
+    with overlaid prediction information, useful for manual verification and
+    reporting purposes.
     
     Args:
-        image_path1: Caminho da primeira imagem.
-        image_path2: Caminho da segunda imagem.
-        decision: Decisão do modelo ("Genuine" ou "Impostor").
-        score: Pontuação de confiança.
-        output_path: Caminho para salvar a visualização.
+        image_path1 (str): Path to the first image
+        image_path2 (str): Path to the second image
+        decision (str): Model's classification decision ("Genuine" or "Impostor")
+        score (float): Confidence score from the model
+        output_path (str): Path where the visualization will be saved
+        
+    Raises:
+        ValueError: If images cannot be loaded
     """
-    # Carregar imagens
+    # Load input images
     img1 = cv2.imread(image_path1)
     img2 = cv2.imread(image_path2)
     
     if img1 is None or img2 is None:
-        raise ValueError("Não foi possível carregar uma ou ambas as imagens.")
+        raise ValueError("Could not load one or both images.")
     
-    # Redimensionar mantendo proporção
+    # Resize images maintaining aspect ratio
     h1, w1 = img1.shape[:2]
     h2, w2 = img2.shape[:2]
     
@@ -194,11 +270,72 @@ def create_visualization(image_path1, image_path2, decision, score, output_path)
     img1 = cv2.resize(img1, (int(w1 * target_height / h1), target_height))
     img2 = cv2.resize(img2, (int(w2 * target_height / h2), target_height))
     
-    # Criar espaço em branco entre as imagens (50 pixels)
+    # Create white space between images (50 pixels)
     h_max = max(img1.shape[0], img2.shape[0])
     w_total = img1.shape[1] + img2.shape[1] + 50
     
-    # Criar tela para visualização com espaço para texto
+    # Create visualization canvas with space for text
+    vis = np.ones((h_max + 100, w_total, 3), dtype=np.uint8) * 255
+    
+    # Place images on canvas
+    vis[50:50+img1.shape[0], 0:img1.shape[1]] = img1
+    vis[50:50+img2.shape[0], img1.shape[1]+50:img1.shape[1]+50+img2.shape[1]] = img2
+    
+    # Add labels and information
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    
+    # Image titles
+    cv2.putText(vis, "Image 1", (10, 30), font, 0.7, (0, 0, 0), 2)
+    cv2.putText(vis, "Image 2", (img1.shape[1]+60, 30), font, 0.7, (0, 0, 0), 2)
+    
+    # Prediction result with color coding
+    color = (0, 128, 0) if decision == "Genuine" else (0, 0, 255)  # Green for genuine, red for impostor
+    result_text = f"Result: {decision} (score: {score:.4f})"
+    cv2.putText(vis, result_text, (10, h_max+80), font, 0.8, color, 2)
+    
+    # Save visualization
+    cv2.imwrite(output_path, vis)
+
+def get_image_similarity(img1_path, img2_path):
+    """
+    Calculate visual similarity between two images using HOG features.
+    
+    This function computes similarity using Histogram of Oriented Gradients (HOG)
+    features and cosine similarity, providing a baseline comparison independent
+    of the deep learning model.
+    
+    Args:
+        img1_path (str): Path to the first image
+        img2_path (str): Path to the second image
+    
+    Returns:
+        float: Similarity score between 0 and 1 (higher = more similar)
+    """
+    # Load input images
+    img1 = cv2.imread(img1_path)
+    img2 = cv2.imread(img2_path)
+    
+    if img1 is None or img2 is None:
+        return 0.0
+    
+    # Convert to RGB color space
+    img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
+    img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
+    
+    # Resize to standard dimensions for comparison
+    size = (224, 224)
+    img1 = cv2.resize(img1, size)
+    img2 = cv2.resize(img2, size)
+    
+    # Extract HOG (Histogram of Oriented Gradients) features
+    hog1 = skimage.hog(img1, orientations=8, pixels_per_cell=(16, 16),
+                      cells_per_block=(1, 1), visualize=False)
+    hog2 = skimage.hog(img2, orientations=8, pixels_per_cell=(16, 16),
+                      cells_per_block=(1, 1), visualize=False)
+    
+    # Calculate cosine similarity between HOG features
+    similarity = cosine_similarity([hog1], [hog2])[0][0]
+    return float(similarity)
     vis = np.ones((h_max + 100, w_total, 3), dtype=np.uint8) * 255
     
     # Adicionar imagens
@@ -259,57 +396,64 @@ def get_image_similarity(img1_path, img2_path):
 
 def filter_similar_images(image_path1, image_path2, similar_inputs, similarity_threshold=0.7):
     """
-    Filtra apenas as imagens que são mais similares à imagem de referência.
+    Filter images based on visual similarity to a reference image.
+    
+    This function analyzes a list of candidate images and returns only those
+    that meet a minimum similarity threshold compared to the reference image,
+    useful for quality control and relevance filtering.
     
     Args:
-        image_path1: Caminho da primeira imagem (referência)
-        image_path2: Caminho da segunda imagem
-        similar_inputs: Lista de caminhos de imagens similares
-        similarity_threshold: Limiar de similaridade (default: 0.7)
+        image_path1 (str): Path to the reference image
+        image_path2 (str): Path to the second image (currently not used)
+        similar_inputs (list): List of candidate image paths to filter
+        similarity_threshold (float): Minimum similarity score (0.0 to 1.0)
     
     Returns:
-        list: Lista filtrada de caminhos de imagens similares
+        list: Filtered list of image paths that meet similarity criteria
     """
     if not similar_inputs:
         return []
     
-    # Calcular similaridade com a imagem de referência
+    # Calculate similarity scores with the reference image
     similarities = []
     for img_path in similar_inputs:
         sim_score = get_image_similarity(image_path1, img_path)
         similarities.append((img_path, sim_score))
     
-    # Ordenar por similaridade e filtrar pelo threshold
+    # Sort by similarity score (highest first) and filter by threshold
     similarities.sort(key=lambda x: x[1], reverse=True)
     filtered_images = [img for img, sim in similarities if sim >= similarity_threshold]
     
-    # Retornar no máximo as 3 imagens mais similares
+    # Return at most the 3 most similar images
     return filtered_images[:3]
 
 def filter_similar_explanations(explanations, similarity_threshold=0.7):
     """
-    Filtra apenas as explicações que são mais similares entre si.
+    Filter explanations based on semantic similarity to reduce redundancy.
+    
+    This function uses sentence embeddings to identify and filter out highly
+    similar explanations, keeping only diverse and representative ones.
     
     Args:
-        explanations: Lista de explicações geradas pelo LVLM
-        similarity_threshold: Limiar de similaridade (default: 0.7)
+        explanations (list): List of text explanations to filter
+        similarity_threshold (float): Minimum similarity threshold for grouping
     
     Returns:
-        list: Lista filtrada de explicações mais similares
+        list: Filtered list of semantically diverse explanations
     """
     if not explanations or len(explanations) <= 1:
         return explanations
     
-    # Carregar modelo de embeddings
+    # Load sentence transformer model for text embeddings
     model = SentenceTransformer('all-MiniLM-L6-v2')
     
-    # Calcular embeddings para todas as explicações
+    # Calculate embeddings for all explanations
     embeddings = model.encode(explanations)
     
-    # Calcular matriz de similaridade
+    # Compute pairwise similarity matrix
     similarity_matrix = cosine_similarity(embeddings)
     
-    # Encontrar grupos de explicações similares
+    # Find groups of similar explanations
     similar_groups = []
     used_indices = set()
     
@@ -317,69 +461,72 @@ def filter_similar_explanations(explanations, similarity_threshold=0.7):
         if i in used_indices:
             continue
             
-        # Encontrar explicações similares à atual
+        # Find explanations similar to the current one
         similar_indices = [j for j in range(len(explanations)) 
                          if similarity_matrix[i][j] >= similarity_threshold 
                          and j not in used_indices]
         
         if similar_indices:
-            # Adicionar ao grupo
+            # Add to group and mark as used
             group = [explanations[j] for j in similar_indices]
             similar_groups.append(group)
             used_indices.update(similar_indices)
     
-    # Selecionar a explicação mais representativa de cada grupo
+    # Select the most representative explanation from each group
     filtered_explanations = []
     for group in similar_groups:
-        # Usar a primeira explicação do grupo como representante
+        # Use the first explanation of the group as representative
         filtered_explanations.append(group[0])
     
     return filtered_explanations
 
 def find_cluster_centroids(explanations, n_components=2, n_clusters=3):
     """
-    Encontra os centroides dos clusters de explicações usando PCA e K-means.
+    Find cluster centroids of explanations using PCA and K-means clustering.
+    
+    This function applies dimensionality reduction followed by clustering to
+    identify the most representative explanations from different semantic clusters.
     
     Args:
-        explanations: Lista de explicações geradas pelo LVLM
-        n_components: Número de componentes para PCA
-        n_clusters: Número de clusters para K-means
+        explanations (list): List of text explanations to cluster
+        n_components (int): Number of PCA components for dimensionality reduction
+        n_clusters (int): Number of clusters for K-means
     
     Returns:
-        list: Lista de explicações centroides (uma por cluster)
+        list: List of explanation centroids (one per cluster)
     """
     if not explanations or len(explanations) <= 1:
         return explanations
     
-    # Carregar modelo de embeddings
+    # Load sentence transformer model for text embeddings
     model = SentenceTransformer('all-MiniLM-L6-v2')
     
-    # Calcular embeddings para todas as explicações
+    # Calculate embeddings for all explanations
     embeddings = model.encode(explanations)
     
-    # Aplicar PCA para reduzir dimensionalidade
+    # Apply PCA for dimensionality reduction
     pca = PCA(n_components=min(n_components, len(explanations)-1))
     reduced_embeddings = pca.fit_transform(embeddings)
     
-    # Aplicar K-means para encontrar clusters
+    # Apply K-means clustering to find groups
     n_clusters = min(n_clusters, len(explanations))
     kmeans = KMeans(n_clusters=n_clusters, random_state=42)
     cluster_labels = kmeans.fit_predict(reduced_embeddings)
     
-    # Encontrar o centroide mais próximo de cada cluster
+    # Find the closest explanation to each cluster center
     centroids = []
     for cluster_id in range(n_clusters):
-        # Pegar índices das explicações neste cluster
+        # Get indices of explanations in this cluster
         cluster_indices = np.where(cluster_labels == cluster_id)[0]
         if len(cluster_indices) == 0:
             continue
             
-        # Calcular distância de cada ponto ao centro do cluster
+        # Calculate distance from each point to cluster center
         cluster_embeddings = reduced_embeddings[cluster_indices]
         cluster_center = kmeans.cluster_centers_[cluster_id]
         distances = np.linalg.norm(cluster_embeddings - cluster_center, axis=1)
         
-        # Pegar a explicação mais próxima do centro
+        # Get explanation closest to center
         closest_idx = cluster_indices[np.argmin(distances)]
         centroids.append(explanations[closest_idx])
     
@@ -387,18 +534,41 @@ def find_cluster_centroids(explanations, n_components=2, n_clusters=3):
 
 def find_best_explanation(pca_coords, explanations, n_clusters=3):
     """
-    Encontra a melhor explicação baseada no centro do cluster mais denso.
+    Find the best explanation based on the center of the densest cluster.
+    
+    This function identifies the most representative explanation by finding
+    the densest cluster and selecting the explanation closest to its center.
+    
+    Args:
+        pca_coords (np.ndarray): PCA-transformed coordinates of explanations
+        explanations (list): Original text explanations
+        n_clusters (int): Number of clusters for analysis
+    
+    Returns:
+        tuple: (best_explanation, cluster_size) - the most representative 
+               explanation and size of its cluster
     """
     from sklearn.cluster import KMeans
     import numpy as np
     
-    # Aplicar K-means para encontrar clusters
+    # Apply K-means clustering to PCA coordinates
     kmeans = KMeans(n_clusters=n_clusters, random_state=42)
     cluster_labels = kmeans.fit_predict(pca_coords)
     
-    # Encontrar o cluster mais denso
+    # Find the densest (largest) cluster
     cluster_sizes = np.bincount(cluster_labels)
     densest_cluster = np.argmax(cluster_sizes)
+    
+    # Get points and explanations from the densest cluster
+    cluster_center = kmeans.cluster_centers_[densest_cluster]
+    cluster_points = pca_coords[cluster_labels == densest_cluster]
+    cluster_explanations = [exp for i, exp in enumerate(explanations) if cluster_labels[i] == densest_cluster]
+    
+    # Calculate distances to cluster center
+    distances = np.linalg.norm(cluster_points - cluster_center, axis=1)
+    best_idx = np.argmin(distances)
+    
+    return cluster_explanations[best_idx], cluster_sizes[densest_cluster]
     
     # Encontrar o ponto mais próximo do centro do cluster mais denso
     cluster_center = kmeans.cluster_centers_[densest_cluster]
@@ -413,67 +583,77 @@ def find_best_explanation(pca_coords, explanations, n_clusters=3):
 
 def explain_prediction_with_multiple_prompts(image_path1, image_path2, decision, score, custom_prompts=None, num_prompts=5):
     """
-    Explica a predição usando múltiplos prompts personalizados ou gerados automaticamente.
+    Generate comprehensive explanation using multiple specialized analysis prompts.
+    
+    This function creates diverse explanations by employing multiple specialized
+    analysis perspectives (forensic, security, technical, etc.) and then uses
+    clustering to identify the most representative insights.
     
     Args:
-        image_path1: Caminho da primeira imagem
-        image_path2: Caminho da segunda imagem  
-        decision: Decisão do modelo ("Genuine" ou "Impostor")
-        score: Score de confiança
-        custom_prompts: Lista de prompts personalizados (opcional)
-        num_prompts: Número de prompts a gerar se custom_prompts não fornecido
+        image_path1 (str): Path to the first biometric image
+        image_path2 (str): Path to the second biometric image  
+        decision (str): Model's classification decision ("Genuine" or "Impostor")
+        score (float): Confidence score from the model
+        custom_prompts (list, optional): Custom analysis prompts to use
+        num_prompts (int): Number of prompts to generate if custom_prompts not provided
     
     Returns:
-        dict: Dicionário com todas as explicações e análise
+        dict: Comprehensive analysis results including:
+            - all_explanations: All generated explanations
+            - centroid_explanations: Representative explanations from each cluster
+            - best_explanation: Single best representative explanation
+            - prompts_used: List of prompts that were used
+            - num_generated: Total number of explanations generated
+            - num_clusters: Number of semantic clusters found
     """
     try:
         explanations = []
         prompts_used = []
         
         if custom_prompts:
-            # Usar prompts personalizados fornecidos
+            # Use provided custom prompts
             for i, prompt in enumerate(custom_prompts):
-                print(f"Gerando explicação {i+1}/{len(custom_prompts)} com prompt personalizado...")
+                print(f"Generating explanation {i+1}/{len(custom_prompts)} with custom prompt...")
                 explanation = generate_explanation_with_gpt4(image_path1, image_path2, decision, score, prompt)
                 explanations.append(explanation)
                 prompts_used.append(prompt)
         else:
-            # Gerar prompts variados automaticamente
+            # Generate varied prompts automatically with different specialist perspectives
             prompt_variations = [
-                """Você é um especialista forense em biometria. Analise este par de imagens classificado como {decision} (score: {score:.4f}).
-                Foque em: características faciais únicas, qualidade das imagens, possíveis vulnerabilidades de segurança.""",
+                """You are a forensic biometrics expert. Analyze this image pair classified as {decision} (score: {score:.4f}).
+                Focus on: unique facial characteristics, image quality, potential security vulnerabilities.""",
                 
-                """Como analista de segurança biométrica, examine estas imagens classificadas como {decision} (score: {score:.4f}).
-                Priorize: aspectos técnicos da captura, condições de iluminação, artefatos que possam afetar a classificação.""",
+                """As a biometric security analyst, examine these images classified as {decision} (score: {score:.4f}).
+                Prioritize: technical capture aspects, lighting conditions, artifacts that may affect classification.""",
                 
-                """Especialista em reconhecimento facial, avalie este par classificado como {decision} (score: {score:.4f}).
-                Concentre-se em: geometria facial, textura da pele, características distintivas, confiabilidade da análise.""",
+                """Facial recognition specialist, evaluate this pair classified as {decision} (score: {score:.4f}).
+                Concentrate on: facial geometry, skin texture, distinctive features, analysis reliability.""",
                 
-                """Auditor de sistemas biométricos, analise esta classificação {decision} (score: {score:.4f}).
-                Examine: precisão do algoritmo, possíveis falsos positivos/negativos, recomendações de melhoria.""",
+                """Biometric systems auditor, analyze this classification {decision} (score: {score:.4f}).
+                Examine: algorithm accuracy, possible false positives/negatives, improvement recommendations.""",
                 
-                """Investigador forense digital, avalie este resultado {decision} (score: {score:.4f}).
-                Analise: autenticidade das imagens, sinais de manipulação, evidências que suportam a classificação."""
+                """Digital forensic investigator, evaluate this result {decision} (score: {score:.4f}).
+                Analyze: image authenticity, manipulation signs, evidence supporting the classification."""
             ]
             
-            # Usar tantos prompts quantos solicitados (repetir se necessário)
+            # Use as many prompts as requested (repeat if necessary)
             for i in range(num_prompts):
                 prompt = prompt_variations[i % len(prompt_variations)]
-                print(f"Gerando explicação {i+1}/{num_prompts}...")
+                print(f"Generating explanation {i+1}/{num_prompts}...")
                 explanation = generate_explanation_with_gpt4(image_path1, image_path2, decision, score, prompt)
                 explanations.append(explanation)
                 prompts_used.append(prompt)
         
         if not explanations:
-            raise ValueError("Não foi possível gerar explicações válidas")
+            raise ValueError("Could not generate valid explanations")
         
-        print(f"\nTotal de explicações geradas: {len(explanations)}")
+        print(f"\nTotal explanations generated: {len(explanations)}")
         
-        # Encontrar centroides dos clusters usando PCA
+        # Find cluster centroids using PCA
         centroid_explanations = find_cluster_centroids(explanations)
-        print(f"Clusters encontrados: {len(centroid_explanations)}")
+        print(f"Clusters found: {len(centroid_explanations)}")
         
-        # Selecionar a melhor explicação
+        # Select the best explanation
         best_explanation = centroid_explanations[0] if centroid_explanations else explanations[0]
         
         return {
@@ -486,20 +666,20 @@ def explain_prediction_with_multiple_prompts(image_path1, image_path2, decision,
         }
     
     except Exception as e:
-        print(f"Erro ao gerar explicações múltiplas: {str(e)}")
+        print(f"Error generating multiple explanations: {str(e)}")
         return {
             "all_explanations": [],
             "centroid_explanations": [],
             "best_explanation": f"""
-## Análise Básica do Par de Imagens
+## Basic Image Pair Analysis
 
-### Decisão do Sistema
-- Classificação: {decision.upper()}
-- Pontuação de confiança: {score:.4f}
+### System Decision
+- Classification: {decision.upper()}
+- Confidence Score: {score:.4f}
 
-### Observação
-Não foi possível gerar explicações detalhadas.
-Erro: {str(e)}
+### Note
+Could not generate detailed explanations.
+Error: {str(e)}
 """,
             "prompts_used": [],
             "num_generated": 0,
@@ -508,33 +688,48 @@ Erro: {str(e)}
 
 def generate_and_visualize_explanations(image_path1, image_path2, decision, score, num_explanations=20):
     """
-    Gera múltiplas explicações usando GPT-4.1, aplica PCA e cria visualização.
+    Generate multiple explanations using GPT-4.1, apply PCA analysis, and create visualizations.
+    
+    This function performs comprehensive explanation analysis by generating multiple
+    diverse explanations, computing their semantic embeddings, applying dimensionality
+    reduction, and identifying the most representative explanations through clustering.
+    
+    Args:
+        image_path1 (str): Path to the first biometric image
+        image_path2 (str): Path to the second biometric image
+        decision (str): Model's classification decision 
+        score (float): Confidence score from the model
+        num_explanations (int): Number of explanations to generate for analysis
+    
+    Returns:
+        dict: Comprehensive analysis results including explanations, embeddings,
+              PCA coordinates, cluster analysis, and visualization metadata
     """
     try:
         explanations = []
         
-        # Gerar múltiplas explicações
+        # Generate multiple diverse explanations
         for i in range(num_explanations):
-            logging.info(f"Gerando explicação {i+1}/{num_explanations}")
+            logging.info(f"Generating explanation {i+1}/{num_explanations}")
             explanation = generate_explanation_with_gpt4(image_path1, image_path2, decision, score)
             explanations.append(explanation)
         
         if not explanations:
-            raise ValueError("Não foi possível gerar explicações válidas")
+            raise ValueError("Could not generate valid explanations")
         
-        # Computar embeddings usando SentenceTransformer
+        # Compute semantic embeddings using SentenceTransformer
         model = SentenceTransformer('all-MiniLM-L6-v2')
         embeddings = model.encode(explanations)
         
-        # Aplicar PCA
+        # Apply Principal Component Analysis for dimensionality reduction
         pca = PCA(n_components=2)
         pca_coords = pca.fit_transform(embeddings)
         explained_variance = pca.explained_variance_ratio_
         
-        # Encontrar a melhor explicação
+        # Find the best explanation using cluster analysis
         best_explanation, cluster_size = find_best_explanation(pca_coords, explanations)
         
-        # Preparar resultados
+        # Prepare comprehensive results
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         results = {
             "explanations": explanations,
@@ -552,151 +747,188 @@ def generate_and_visualize_explanations(image_path1, image_path2, decision, scor
             }
         }
         
-        # Criar diretório para resultados
+        # Create results directory
         results_dir = os.path.join("results", "pca_analysis")
         os.makedirs(results_dir, exist_ok=True)
         
-        # Salvar resultados em JSON
+        # Save results to JSON file
         json_path = os.path.join(results_dir, f"pca_analysis_{timestamp}.json")
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(results, f, ensure_ascii=False, indent=2)
         
-        # Criar visualização PCA
+        # Create PCA visualization
         plt.figure(figsize=(12, 10))
         
-        # Plotar todos os pontos
-        plt.scatter(pca_coords[:, 0], pca_coords[:, 1], c='blue', alpha=0.6, label='Explicações')
+        # Plot all explanation points
+        plt.scatter(pca_coords[:, 0], pca_coords[:, 1], c='blue', alpha=0.6, label='Explanations')
         
-        # Encontrar e plotar o cluster mais denso
+        # Find and plot the densest cluster
         kmeans = KMeans(n_clusters=3, random_state=42)
         cluster_labels = kmeans.fit_predict(pca_coords)
         densest_cluster = np.argmax(np.bincount(cluster_labels))
         cluster_points = pca_coords[cluster_labels == densest_cluster]
-        plt.scatter(cluster_points[:, 0], cluster_points[:, 1], c='red', alpha=0.8, label='Cluster Mais Denso')
+        plt.scatter(cluster_points[:, 0], cluster_points[:, 1], c='red', alpha=0.8, label='Densest Cluster')
         
-        # Plotar o centro do cluster mais denso
+        # Plot the center of the densest cluster
         cluster_center = kmeans.cluster_centers_[densest_cluster]
-        plt.scatter(cluster_center[0], cluster_center[1], c='green', s=200, marker='*', label='Centro do Cluster')
+        plt.scatter(cluster_center[0], cluster_center[1], c='green', s=200, marker='*', label='Cluster Center')
         
-        # Adicionar rótulos para cada ponto
+        # Add labels for each point
         for i, (x, y) in enumerate(pca_coords):
             plt.annotate(f"Exp {i+1}", (x, y), xytext=(5, 5), 
                         textcoords='offset points', fontsize=8)
         
-        # Adicionar título e labels
-        plt.title(f"PCA das Explicações GPT-4.1\nCluster Mais Denso: {cluster_size} explicações")
+        # Add title and axis labels
+        plt.title(f"PCA Analysis of GPT-4.1 Explanations\nDensest Cluster: {cluster_size} explanations")
         plt.xlabel(f"PC1 ({explained_variance[0]*100:.1f}%)")
         plt.ylabel(f"PC2 ({explained_variance[1]*100:.1f}%)")
         plt.legend()
         
-        # Salvar plot
+        # Save plot
         plot_path = os.path.join(results_dir, f"pca_plot_{timestamp}.png")
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
         
-        logging.info(f"Análise PCA concluída. Resultados salvos em {json_path}")
-        logging.info(f"Visualização PCA salva em {plot_path}")
-        logging.info(f"Melhor explicação encontrada no cluster mais denso ({cluster_size} explicações)")
+        logging.info(f"PCA analysis completed. Results saved to {json_path}")
+        logging.info(f"PCA visualization saved to {plot_path}")
+        logging.info(f"Best explanation found in densest cluster ({cluster_size} explanations)")
         
         return results
         
     except Exception as e:
-        logging.error(f"Erro na análise PCA: {str(e)}")
+        logging.error(f"Error in PCA analysis: {str(e)}")
         raise
 
 def demo_multiple_prompts(image_path1, image_path2, decision, score):
     """
-    Demonstra o uso de múltiplos prompts personalizados para análise.
+    Demonstrate the use of multiple custom prompts for specialized analysis.
+    
+    This function showcases how different expert perspectives (forensic, medical,
+    technical) can be applied to the same biometric verification task to generate
+    diverse and comprehensive insights.
+    
+    Args:
+        image_path1 (str): Path to the first biometric image
+        image_path2 (str): Path to the second biometric image
+        decision (str): Model's classification decision
+        score (float): Confidence score from the model
+    
+    Returns:
+        dict: Results from the multi-prompt analysis demonstration
     """
-    # Exemplo de prompts personalizados
+    # Example custom prompts for different expert perspectives
     custom_prompts = [
-        """Você é um especialista em segurança forense. Analise estas imagens biométricas classificadas como {decision} (score: {score:.4f}).
-        Foque exclusivamente em: sinais de falsificação, manipulação digital, autenticidade das imagens, evidências forenses.""",
+        """You are a forensic security expert. Analyze these biometric images classified as {decision} (score: {score:.4f}).
+        Focus exclusively on: falsification signs, digital manipulation, image authenticity, forensic evidence.""",
         
-        """Como médico especialista em anatomia facial, examine este par classificado como {decision} (score: {score:.4f}).
-        Concentre-se em: estruturas ósseas, proporções faciais, características anatômicas únicas, variações biológicas.""",
+        """As a medical specialist in facial anatomy, examine this pair classified as {decision} (score: {score:.4f}).
+        Concentrate on: bone structures, facial proportions, unique anatomical features, biological variations.""",
         
-        """Especialista em visão computacional, avalie esta classificação {decision} (score: {score:.4f}).
-        Analise: qualidade da captura, resolução, artefatos de compressão, condições de iluminação, ruído nas imagens."""
+        """Computer vision expert, evaluate this classification {decision} (score: {score:.4f}).
+        Analyze: capture quality, resolution, compression artifacts, lighting conditions, image noise."""
     ]
     
     print("\n" + "="*60)
-    print("DEMONSTRAÇÃO: ANÁLISE COM MÚLTIPLOS PROMPTS PERSONALIZADOS")
+    print("DEMONSTRATION: ANALYSIS WITH MULTIPLE CUSTOM PROMPTS")
     print("="*60)
     
-    # Gerar explicações com prompts personalizados
+    # Generate explanations with custom prompts
     results = explain_prediction_with_multiple_prompts(
         image_path1, image_path2, decision, score, 
         custom_prompts=custom_prompts
     )
     
-    print(f"\nRESULTADOS:")
-    print(f"- Prompts utilizados: {results['num_generated']}")
-    print(f"- Clusters encontrados: {results['num_clusters']}")
+    print(f"\nRESULTS:")
+    print(f"- Prompts used: {results['num_generated']}")
+    print(f"- Clusters found: {results['num_clusters']}")
     
     print("\n" + "-"*50)
-    print("EXPLICAÇÕES INDIVIDUAIS:")
+    print("INDIVIDUAL EXPLANATIONS:")
     print("-"*50)
     
     for i, explanation in enumerate(results['all_explanations']):
-        print(f"\n### EXPLICAÇÃO {i+1} ###")
+        print(f"\n### EXPLANATION {i+1} ###")
         print(explanation[:200] + "..." if len(explanation) > 200 else explanation)
         print()
     
     print("\n" + "-"*50)
-    print("MELHOR EXPLICAÇÃO (BASEADA EM CLUSTERING):")
+    print("BEST EXPLANATION (BASED ON CLUSTERING):")
     print("-"*50)
     print(results['best_explanation'])
     
     return results
 
 def main():
-    # Argumentos via linha de comando
+    """
+    Main function for biometric pair prediction with AI-powered explanation system.
+    
+    This function provides a comprehensive command-line interface for performing
+    biometric verification between image pairs, generating detailed explanations
+    using GPT-4 Vision, and creating visualizations of the analysis results.
+    
+    Command-line Arguments:
+        --image1: Path to the first biometric image
+        --image2: Path to the second biometric image  
+        --model: Path to the trained ResNet model weights
+        --resnet: ResNet architecture type (resnet18, resnet34, resnet50)
+        --threshold: Decision threshold for classification (default: 0.5)
+        --output: Output directory for results and visualizations
+        --api_key: OpenAI API key for GPT-4 Vision access
+        --prompts: Number of analysis prompts to generate (default: 40)
+        --demo_multiple: Enable demonstration of multiple custom prompts
+    
+    The system performs:
+    1. Biometric verification using trained deep learning models
+    2. AI-powered explanation generation with multiple expert perspectives
+    3. Semantic clustering analysis of explanations
+    4. Comprehensive visualization and reporting
+    """
+    # Configure command-line argument parsing
     import argparse
-    parser = argparse.ArgumentParser(description='Predição e explicação biométrica de pares de imagens usando GPT-4 Vision')
-    parser.add_argument('--image1', type=str, default=None, help='Caminho para a primeira imagem')
-    parser.add_argument('--image2', type=str, default=None, help='Caminho para a segunda imagem')
-    parser.add_argument('--model', type=str, default=None, help='Caminho para o modelo treinado')
+    parser = argparse.ArgumentParser(description='Biometric pair prediction and explanation using GPT-4 Vision')
+    parser.add_argument('--image1', type=str, default=None, help='Path to the first image')
+    parser.add_argument('--image2', type=str, default=None, help='Path to the second image')
+    parser.add_argument('--model', type=str, default=None, help='Path to the trained model')
     parser.add_argument('--resnet', type=str, default='resnet50', choices=['resnet18', 'resnet34', 'resnet50'], 
-                        help='Tipo de ResNet usado no modelo')
-    parser.add_argument('--threshold', type=float, default=0.5, help='Limiar para decisão (default: 0.5)')
-    parser.add_argument('--output', type=str, default='./results', help='Diretório de saída para resultados')
+                        help='ResNet type used in the model')
+    parser.add_argument('--threshold', type=float, default=0.5, help='Decision threshold (default: 0.5)')
+    parser.add_argument('--output', type=str, default='./results', help='Output directory for results')
     parser.add_argument('--api_key', type=str, default=DEFAULT_API_KEY, 
-                        help='Chave da API OpenAI')
+                        help='OpenAI API key')
     parser.add_argument('--prompts', type=int, default=40, 
-                        help='Número de prompts únicos a gerar (default: 5)')
+                        help='Number of unique prompts to generate (default: 5)')
     parser.add_argument('--demo_multiple', action='store_true', 
-                        help='Demonstrar funcionalidade de múltiplos prompts personalizados')
+                        help='Demonstrate multiple custom prompts functionality')
     args = parser.parse_args()
     
-    # Caminhos padrão
+    # Set default paths for demonstration (replace with your actual paths)
     image_path1 = args.image1 or "C:/Users/sanch/Computer Vision/Roi/0058/0058_23_10_2024_10_16_30_0_90_0_0_4_1_1_0_-1_0_2_0_6_0_192_1/frame_000004.jpg"
     image_path2 = args.image2 or "C:/Users/sanch/Computer Vision/Roi/0155/0155_19_09_2024_14_24_15_10_60_4_0_1_-1_-1_-1_-1_6_0_0_6_0_256_1/frame_000006.jpg"
     model_path = args.model or "C:/Users/sanch/Computer Vision/output/final_model_resnet50.pth"
     
     try:
-        # Registrar hora de início
+        # Record start time for performance monitoring
         import time
         start_time = time.time()
         
-        # Obter decisão e score
+        # Perform biometric verification
         decision, score = predict_image_pair(
             image_path1, image_path2, model_path, 
             args.resnet, args.threshold
         )
         
-        # Criar e salvar visualização das imagens
+        # Create and save image comparison visualization
         os.makedirs(args.output, exist_ok=True)
         vis_path = os.path.join(args.output, "comparison.jpg")
         create_visualization(image_path1, image_path2, decision, score, vis_path)
         
         if args.demo_multiple:
-            # Demonstrar funcionalidade de múltiplos prompts
+            # Demonstrate multiple custom prompts functionality
             demo_results = demo_multiple_prompts(image_path1, image_path2, decision, score)
         else:
-            # Usar análise padrão com prompts variados
+            # Use standard analysis with varied prompts
             print("\n" + "="*50)
-            print("ANÁLISE COM MÚLTIPLOS PROMPTS VARIADOS")
+            print("ANALYSIS WITH MULTIPLE VARIED PROMPTS")
             print("="*50)
             
             results = explain_prediction_with_multiple_prompts(
@@ -704,25 +936,25 @@ def main():
                 num_prompts=args.prompts
             )
             
-            print(f"\nClassificação: {decision.upper()}")
-            print(f"Score de Confiança: {score:.4f}")
-            print(f"Visualização das Imagens: {vis_path}")
-            print(f"Número de Explicações Geradas: {results['num_generated']}")
-            print(f"Clusters Encontrados: {results['num_clusters']}")
+            print(f"\nClassification: {decision.upper()}")
+            print(f"Confidence Score: {score:.4f}")
+            print(f"Image Visualization: {vis_path}")
+            print(f"Number of Generated Explanations: {results['num_generated']}")
+            print(f"Clusters Found: {results['num_clusters']}")
             
             print("\n" + "-"*50)
-            print("MELHOR EXPLICAÇÃO:")
+            print("BEST EXPLANATION:")
             print("-"*50)
             print(results['best_explanation'])
         
         print("\n" + "-"*50)
-        print(f"Tempo total de processamento: {time.time() - start_time:.2f} segundos")
+        print(f"Total processing time: {time.time() - start_time:.2f} seconds")
         print("="*50 + "\n")
         
     except Exception as e:
-        logging.error(f"Erro durante a execução: {str(e)}")
-        print(f"\nERRO: {str(e)}")
-        print("\nDetalhes do erro:")
+        logging.error(f"Error during execution: {str(e)}")
+        print(f"\nERROR: {str(e)}")
+        print("\nError details:")
         import traceback
         traceback.print_exc()
 
